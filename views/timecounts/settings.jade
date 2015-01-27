@@ -21,5 +21,17 @@ block content
         input(type='password', name='apiToken', value=data.apiToken)
 
     .control-group
+      label.control-label Organization slug
+      .controls
+        input(type='password', name='organization', value=data.organization)
+
+    .control-group
       .controls
         button.btn-success(type="Submit") Save
+
+  hr
+
+  form.form-horizontal(method="POST")
+    h3 Perform synchronisation
+    div
+      button.btn.btn-danger(type='submit',name='sync', value='sync') Sync

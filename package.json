@@ -1,0 +1,24 @@
+{
+  "name": "members-area-timecounts",
+  "version": "0.0.1",
+  "description": "Plugin for members-area to integrate with timecounts.org",
+  "main": "index.coffee",
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: I need some tests!\" && exit 1"
+  },
+  "author": {
+    "name": "Benjie Gillam",
+    "email": "benjie@jemjie.com"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/members-area/members-area-timecounts.git"
+  },
+  "bugs": {
+    "url": "https://github.com/members-area/members-area-timecounts/issues"
+  },
+  "homepage": "https://github.com/members-area/members-area-timecounts",
+  "dependencies": {}
+}

@@ -1,0 +1,25 @@
+extends /sidebar
+
+block title
+  | Timecounts Integration Settings
+
+block content
+  h2 Timecounts Integration Settings
+
+  form.form-horizontal(method="POST")
+    input(type='hidden', name='saveSettings', value='true')
+    .control-group
+      label.control-label(for="roleId") Sync people with role
+      .controls
+        select(id="roleId", name="roleId")
+          each role in roles
+            option(value=role.id, selected=(role.id === data.roleId))= role.name
+
+    .control-group
+      label.control-label API Token
+      .controls
+        input(type='password', name='apiToken', value=data.apiToken)
+
+    .control-group
+      .controls
+        button.btn-success(type="Submit") Save

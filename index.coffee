@@ -17,8 +17,9 @@ class Timecounts
     options = Url.parse(fullURL)
     options.method = method
     options.headers =
-      Authorization: "Token token=\"#{@plugin.get('apiToken')}\""
       Accept: "application/json"
+    if token = @plugin.get('apiToken')
+      options.headers.Authorization = "Token token=\"#{token}\""
     if data?
       data = JSON.stringify(data) unless typeof data is 'string'
       options.headers["Content-Type"] = "application/json"

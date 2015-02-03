@@ -23,11 +23,11 @@ block content
     .control-group
       label.control-label Organization slug
       .controls
-        input(type='password', name='organization', value=data.organization)
+        input(type='text', name='organization', value=data.organization)
 
     .control-group
       .controls
-        button.btn-success(type="Submit") Save
+        button.btn.btn-success(type="Submit") Save
 
   hr
 
@@ -35,3 +35,40 @@ block content
     h3 Perform synchronisation
     div
       button.btn.btn-danger(type='submit',name='sync', value='sync') Sync
+
+  hr
+
+  if !data.apiToken || !data.apiToken.length || !data.organization || !data.organization.length
+    form.form-horizontal(method="POST")
+      h3 Log in
+
+      if loginError
+        p.text-error= loginError
+
+      if loginStep2
+        input(type='hidden', name='apiToken', value=data.apiToken)
+        .control-group
+          label.control-label Organization
+          .controls
+            select(name='organization')
+              for name, slug in organizations
+                option(value=slug)= name
+
+        .control-group
+          .controls
+            button.btn.btn-success(type='submit', name='login', value='login2') Configure
+
+      else
+        .control-group
+          label.control-label Email
+          .controls
+            input(type='text', name='email', value=data.email)
+
+        .control-group
+          label.control-label Password
+          .controls
+            input(type='password', name='password')
+
+        .control-group
+          .controls
+            button.btn.btn-success(type='submit', name='login', value='login') Login

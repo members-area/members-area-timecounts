@@ -4,6 +4,7 @@ module.exports = class Timecounts extends Controller
   @before 'ensureAdmin', only: ['settings']
   @before 'loadRoles', only: ['settings']
   @before 'handleSettings', only: ['settings']
+  @before 'doLogin', only: ['settings']
   @before 'doSync', only: ['settings']
 
   settings: ->
@@ -26,6 +27,30 @@ module.exports = class Timecounts extends Controller
     return @redirectTo "/login?next=#{encodeURIComponent @req.path}" unless @req.user?
     return done new @req.HTTPError 403, "Permission denied" unless @req.user.can('admin')
     done()
+
+  doLogin: (done) ->
+    return done() unless @req.body.login
+    if @req.body.login is 'login'
+      # Attempt to login
+      data =
+        email: @data.email
+        password: @data.password
+      @plugin.timecounts.post "/users/sign_in", data, (err, response) =>
+        if err
+          if err.status is 401
+            @loginError = "Incorrect username or password"
+          else
+            @loginError = "Something went wrong"
+          return done()
+        @loginStep2 = true
+        @data.apiToken = response.data.token
+        @organizations = {}
+        @organizations[org.slug] = org.name for org in response.data.user.admin_organizations
+        return done()
+    else
+      # Step 2
+      @plugin.set {apiToken: @data.apiToken, organization: @data.organization}
+      return done()
 
   doSync: (done) ->
     return done() unless @req.body.sync

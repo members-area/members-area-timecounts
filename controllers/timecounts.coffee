@@ -56,9 +56,9 @@ module.exports = class Timecounts extends Controller
     return done() unless @req.body.sync
     @plugin.async.series
       checkExistingTimecountsGroups: (done) =>
-        @rolesByTimecountsGroupId = {}
-        @rolesByTimecountsGroupId[role.meta.timecountsId] = role for role in @roles when role.meta?.timecountsId?
-        groupIds = Object.keys(@rolesByTimecountsGroupId)
+        rolesByTimecountsGroupId = {}
+        rolesByTimecountsGroupId[role.meta.timecountsId] = role for role in @roles when role.meta?.timecountsId?
+        groupIds = Object.keys(rolesByTimecountsGroupId)
         return done() if groupIds.length is 0
         # Check these still exist on timecounts
         @plugin.timecounts.get "/organizations/#{@plugin.get('organization')}/groups?id_in=#{groupIds.join(",")}", (err, response) =>
@@ -69,9 +69,9 @@ module.exports = class Timecounts extends Controller
           @plugin.async.eachSeries groupIds, (groupId, done) =>
             if !timecountsGroupsById[groupId]
               # Timecounts can't find this group, it must have been deleted!
-              role = @rolesByTimecountsGroupId[groupId]
+              role = rolesByTimecountsGroupId[groupId]
               role.setMeta timecountsId: undefined
-              delete @rolesByTimecountsGroupId[groupId]
+              delete rolesByTimecountsGroupId[groupId]
               role.save done
             else
               done()
@@ -90,7 +90,6 @@ module.exports = class Timecounts extends Controller
               if Array.isArray(group)
                 group = group[0]
               role.setMeta timecountsId: group.id
-              @rolesByTimecountsGroupId[group.id] = role
               role.save done
             if err and err.status is 422
               @plugin.timecounts.get "/organizations/#{@plugin.get('organization')}/groups?name=#{encodeURIComponent groupData.name}", next

@@ -97,6 +97,62 @@ module.exports = class Timecounts extends Controller
               next(err, response)
         @plugin.async.mapSeries @roles, create, done
 
+      loadUsers: (done) =>
+        @req.models.User.find (err, @users) =>
+          done(err)
+
+      createUsers: (done) =>
+        allUsers = @users[..]
+        batches = []
+        while allUsers.length > 0
+          batches.push allUsers.splice(0, 25)
+
+        processBatch = (users, done) =>
+          @plugin.async.series
+            checkExistingTimecountsUsers: (done) =>
+              usersByTimecountsPersonId = {}
+              usersByTimecountsPersonId[user.meta.timecountsId] = user for user in users when user.meta?.timecountsId?
+              personIds = Object.keys(usersByTimecountsPersonId)
+              return done() if personIds.length is 0
+              # Check these people still exist on tiemcounts
+              @plugin.timecounts.get "/organizations/#{@plugin.get('organization')}/people?id_in=#{personIds.join(",")}", (err, response) =>
+                return done(new Error("Failed to fetch people from timecounts.")) if err
+                timecountsPeople = response.data
+                timecountsPeopleById = {}
+                timecountsPeopleById[person.id] = person for person in timecountsPeople
+                @plugin.async.eachSeries personIds, (personId, done) =>
+                  if !timecountsPeople[personId]
+                    # Timecounts can't find this person, must have been deleted
+                    user = usersByTimecountsPersonId[personId]
+                    user.setMeta timecountsId: undefined
+                    delete usersByTimecountsPersonId[personId]
+                    user.save done
+                  else
+                    done()
+                , done
+
+            createTimecountsUsers: (done) =>
+              personFromUser = (user) ->
+                email: user.email.toLowerCase()
+                name: user.fullname
+              create = (user, done) =>
+                return done() if user.meta?.timecountsId
+                personData = personFromUser(user)
+                @plugin.timecounts.post "/organizations/#{@plugin.get('organization')}/people", personData, (err, response) =>
+                  next = (err, response) =>
+                    return done(new Error("Failed to create person in timecounts.")) if err
+                    person = response.data
+                    if Array.isArray(person)
+                      person = person[0]
+                    user.setMeta timecountsId: person.id
+                    user.save -> done() # ignore errors
+                  if err and err.status is 422
+                    @plugin.timecounts.get "/organizations/#{@plugin.get('organization')}/people?email=#{encodeURIComponent personData.email}", next
+                  else
+                    next(err, response)
+              @plugin.async.mapSeries users, create, done
+          , done
+        @plugin.async.mapSeries batches, processBatch, done
+
     , (err) =>
       return done err if err
-      return done()

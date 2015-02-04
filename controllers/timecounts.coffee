@@ -98,7 +98,10 @@ module.exports = class Timecounts extends Controller
         @plugin.async.mapSeries @roles, create, done
 
       loadUsers: (done) =>
-        @req.models.User.find (err, @users) =>
+        requiredRoleId = @plugin.get('roleId')
+        @req.models.User.find()
+        .where("EXISTS(SELECT 1 FROM role_user WHERE user_id = user.id AND approved IS NOT NULL AND rejected IS NULL AND role_id = ?)", [requiredRoleId])
+        .all (err, @users) =>
           done(err)
 
       createUsers: (done) =>

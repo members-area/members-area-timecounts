@@ -29,16 +29,17 @@ block content
       .controls
         button.btn.btn-success(type="Submit") Save
 
-  hr
+  if data.apiToken && data.apiToken.length && data.organization && data.organization.length
+    hr
 
-  form.form-horizontal(method="POST")
-    h3 Perform synchronisation
-    div
-      button.btn.btn-danger(type='submit',name='sync', value='sync') Sync
-
-  hr
+    form.form-horizontal(method="POST")
+      h3 Perform synchronisation
+      div
+        button.btn.btn-danger(type='submit',name='sync', value='sync') Sync
 
   if !data.apiToken || !data.apiToken.length || !data.organization || !data.organization.length
+    hr
+
     form.form-horizontal(method="POST")
       h3 Log in
 

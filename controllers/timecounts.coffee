@@ -132,9 +132,44 @@ module.exports = class Timecounts extends Controller
                 , done
 
             createTimecountsUsers: (done) =>
+              addressPartsFromAddress = (address) ->
+                # Ripped from https://github.com/members-area/members-area-gocardless/blob/1981ca320b2c2b3209ed65450372a1119b9a7461/index.coffee#L253-270
+                # Sorry this is a bit Southampton specific, pull requests welcome
+                if address?.length
+                  tmp = address.match /[A-Z]{2}[0-9]{1,2}\s*[0-9][A-Z]{2}/i
+                  if tmp
+                    postcode = tmp[0].toUpperCase()
+                    address = address.replace(tmp[0], "")
+                  tmp = address.split /[\n\r,]/
+                  tmp = tmp.filter (a) -> a.replace(/\s+/g, "").length > 0
+                  tmp = tmp.filter (a) -> !a.match /^(hants|hampshire)$/
+                  for potentialTown, i in tmp
+                    t = potentialTown.replace /[^a-z]/gi, ""
+                    if t.match /^(southampton|soton|eastleigh|chandlersford|winchester|northbaddesley|havant|portsmouth|bournemouth|poole|bognorregis|romsey|lyndhurst|eye|warsash|lymington)$/i
+                      town = potentialTown
+                      tmp.splice i, 1
+                      break
+                  if tmp.length > 1
+                    address2 = tmp.pop()
+                  address1 = tmp.join(", ")
+                if town?
+                  return {
+                    address: address1
+                    city: town
+                    province: "Hampshire"
+                    country: "UK"
+                    zipcode: postcode
+                  }
+                else
+                  # Use postcode to look up address?
+                  return {}
+
               personFromUser = (user) ->
-                email: user.email.toLowerCase()
-                name: user.fullname
+                base = addressPartsFromAddress(user.address)
+                base.email = user.email.toLowerCase()
+                base.name = user.fullname # Timecounts splits this up for us.
+                return base
+
               create = (user, done) =>
                 return done() if user.meta?.timecountsId
                 personData = personFromUser(user)
@@ -151,8 +186,24 @@ module.exports = class Timecounts extends Controller
                   else
                     next(err, response)
               @plugin.async.mapSeries users, create, done
+
+            assignToGroups: (done) =>
+              updateGroupWithRole = (role, done) =>
+                groupId = role.meta?.timecountsId
+                return done() unless groupId
+                # Find the people that have this role
+                @req.models.User.find()
+                  .where("EXISTS(SELECT 1 FROM role_user WHERE user_id = user.id AND approved IS NOT NULL AND rejected IS NULL AND role_id = ?)", [role.id])
+                  .all (err, users) =>
+                    return done(err) if err
+                    return done() unless users?.length
+                    personIds = (user.meta.timecountsId for user in users when user.meta?.timecountsId?)
+                    @plugin.timecounts.put "/organizations/#{@plugin.get('organization')}/groups/#{groupId}/members", personIds, (err, response) =>
+                      return done() unless err
+                      return done(new Error(err.data?.error_message ? "Something went wrong"))
+              @plugin.async.each @roles, updateGroupWithRole, done
+
           , done
         @plugin.async.mapSeries batches, processBatch, done
 
-    , (err) =>
-      return done err if err
+    , done

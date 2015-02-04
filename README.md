@@ -14,6 +14,9 @@ Simple syncing works.
 
 Full syncing does not yet exist.
 
+There's no progress reporting so you just have to wait for sync to
+finish and trust it's working.
+
 There's very little in the way of error handling.
 
 Simple syncing

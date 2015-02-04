@@ -186,24 +186,25 @@ module.exports = class Timecounts extends Controller
                   else
                     next(err, response)
               @plugin.async.mapSeries users, create, done
-
-            assignToGroups: (done) =>
-              updateGroupWithRole = (role, done) =>
-                groupId = role.meta?.timecountsId
-                return done() unless groupId
-                # Find the people that have this role
-                @req.models.User.find()
-                  .where("EXISTS(SELECT 1 FROM role_user WHERE user_id = user.id AND approved IS NOT NULL AND rejected IS NULL AND role_id = ?)", [role.id])
-                  .all (err, users) =>
-                    return done(err) if err
-                    return done() unless users?.length
-                    personIds = (user.meta.timecountsId for user in users when user.meta?.timecountsId?)
-                    @plugin.timecounts.put "/organizations/#{@plugin.get('organization')}/groups/#{groupId}/members", personIds, (err, response) =>
-                      return done() unless err
-                      return done(new Error(err.data?.error_message ? "Something went wrong"))
-              @plugin.async.each @roles, updateGroupWithRole, done
-
           , done
-        @plugin.async.mapSeries batches, processBatch, done
+
+        @plugin.async.eachSeries batches, processBatch, done
+
+      assignToGroups: (done) =>
+        updateGroupWithRole = (role, done) =>
+          groupId = role.meta?.timecountsId
+          return done() unless groupId
+          # Find the people that have this role
+          @req.models.User.find()
+            .where("EXISTS(SELECT 1 FROM role_user WHERE user_id = user.id AND approved IS NOT NULL AND rejected IS NULL AND role_id = ?)", [role.id])
+            .all (err, users) =>
+              return done(err) if err
+              return done() unless users?.length
+              personIds = (user.meta.timecountsId for user in users when user.meta?.timecountsId?)
+              @plugin.timecounts.put "/organizations/#{@plugin.get('organization')}/groups/#{groupId}/members", personIds, (err, response) =>
+                return done() unless err
+                return done(new Error(err.data?.error_message ? "Something went wrong"))
+        @plugin.async.each @roles, updateGroupWithRole, done
+
 
     , done

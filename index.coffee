@@ -26,8 +26,6 @@ class Timecounts
       options.headers["Content-Length"] = data.length
 
     req = http.request options, (res) =>
-      console.log('STATUS: ' + res.statusCode);
-      console.log('HEADERS: ' + JSON.stringify(res.headers));
       responseBody = new Buffer("")
       res.on 'data', (chunk) =>
         responseBody = Buffer.concat [responseBody, chunk]
@@ -35,8 +33,6 @@ class Timecounts
         try
           dataString = responseBody.toString('utf8')
           dataJson = JSON.parse dataString
-          console.log "BODY:"
-          console.dir(dataJson)
           payload =
             status: res.statusCode
             headers: res.headers

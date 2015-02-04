@@ -110,6 +110,8 @@ module.exports = class Timecounts extends Controller
         while allUsers.length > 0
           batches.push allUsers.splice(0, 25)
 
+        return done() unless batches.length
+
         processBatch = (users, done) =>
           @plugin.async.series
             checkExistingTimecountsUsers: (done) =>

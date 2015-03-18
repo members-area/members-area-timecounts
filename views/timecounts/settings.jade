@@ -16,6 +16,11 @@ block content
             option(value=role.id, selected=(role.id === data.roleId))= role.name
 
     .control-group
+      label.control-label API Endpoint
+      .controls
+        input(type='url', name='endpoint', value=data.endpoint)
+
+    .control-group
       label.control-label API Token
       .controls
         input(type='password', name='apiToken', value=data.apiToken)
@@ -23,13 +28,13 @@ block content
     .control-group
       label.control-label Organization slug
       .controls
-        input(type='text', name='organization', value=data.organization)
+        input(type='text', name='organizationSlug', value=data.organizationSlug)
 
     .control-group
       .controls
         button.btn.btn-success(type="Submit") Save
 
-  if data.apiToken && data.apiToken.length && data.organization && data.organization.length
+  if data.apiToken && data.apiToken.length && data.organizationSlug && data.organizationSlug.length
     hr
 
     form.form-horizontal(method="POST")
@@ -37,7 +42,7 @@ block content
       div
         button.btn.btn-danger(type='submit',name='sync', value='sync') Sync
 
-  if !data.apiToken || !data.apiToken.length || !data.organization || !data.organization.length
+  if !data.apiToken || !data.apiToken.length || !data.organizationSlug || !data.organizationSlug.length
     hr
 
     form.form-horizontal(method="POST")
@@ -47,7 +52,8 @@ block content
         p.text-error= loginError
 
       if loginStep2
-        input(type='hidden', name='apiToken', value=data.apiToken)
+        input(type='hidden', name='email', value=data.email)
+        input(type='hidden', name='password', value=data.password)
         .control-group
           label.control-label Organization
           .controls

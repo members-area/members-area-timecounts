@@ -11,7 +11,7 @@ class Timecounts
 
   perform: (method, url, data, callback) ->
     apiToken = @plugin.get('apiToken')
-    fullURL = "http://api.tcapi.dev#{url}"
+    fullURL = "#{@plugin.endpoint()}#{url}"
     http = @httpModule(fullURL)
 
     options = Url.parse(fullURL)
@@ -67,6 +67,9 @@ module.exports =
     @hook 'navigation_items', @modifyNavigationItems.bind(this)
     @timecounts = new Timecounts(@)
     done()
+
+  endpoint: ->
+    (@get('endpoint') ? "https://timecounts-api.herokuapp.com").replace(/\/+$/, "")
 
   modifyNavigationItems: ({addItem}) ->
     addItem 'settings',

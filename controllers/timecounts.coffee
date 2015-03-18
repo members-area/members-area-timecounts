@@ -10,12 +10,13 @@ module.exports = class Timecounts extends Controller
   settings: ->
 
   handleSettings: (done) ->
+    @data.endpoint ?= @plugin.endpoint()
     @data.roleId ?= @plugin.get('roleId') ? 1
     @data.apiToken ?= @plugin.get('apiToken')
-    @data.organization ?= @plugin.get('organization')
+    @data.organizationSlug ?= @plugin.get('organizationSlug')
 
     if @req.method is 'POST' and @req.body.saveSettings is 'true'
-      @plugin.set {apiToken: @data.apiToken, roleId: @data.roleId, organization: @data.organization}
+      @plugin.set {endpoint: @data.endpoint, apiToken: @data.apiToken, roleId: @data.roleId, organizationSlug: @data.organizationSlug}
 
     done()
 
@@ -35,6 +36,7 @@ module.exports = class Timecounts extends Controller
       data =
         email: @data.email
         password: @data.password
+        expires_after: 30*60
       @plugin.timecounts.post "/users/sign_in", data, (err, response) =>
         if err
           if err.status is 401
@@ -43,14 +45,30 @@ module.exports = class Timecounts extends Controller
             @loginError = "Something went wrong"
           return done()
         @loginStep2 = true
-        @data.apiToken = response.data.token
         @organizations = {}
-        @organizations[org.slug] = org.name for org in response.data.user.admin_organizations
+        @organizations["#{org.id}-#{org.slug}"] = org.name for org in response.data.user.admin_organizations
         return done()
     else
       # Step 2
-      @plugin.set {apiToken: @data.apiToken, organization: @data.organization}
-      return done()
+      [id, slug...] = @data.organization.split("-")
+      id = parseInt(id, 10)
+      slug = slug.join("-")
+      data =
+        email: @data.email
+        password: @data.password
+        scopes: ['read:person', 'write:person', 'read:group', 'write:group']
+        organization_ids: [id]
+      @plugin.timecounts.post "/users/sign_in", data, (err, response) =>
+        if err
+          if err.status is 401
+            @loginError = "Incorrect username or password"
+          else
+            @loginError = "Something went wrong"
+          return done()
+        @plugin.set {apiToken: response.data.token, organizationSlug: slug}
+        @data.apiToken = @plugin.get('apiToken')
+        @data.organizationSlug = @plugin.get('organizationSlug')
+        return done()
 
   doSync: (done) ->
     return done() unless @req.body.sync
@@ -61,7 +79,7 @@ module.exports = class Timecounts extends Controller
         groupIds = Object.keys(rolesByTimecountsGroupId)
         return done() if groupIds.length is 0
         # Check these still exist on timecounts
-        @plugin.timecounts.get "/organizations/#{@plugin.get('organization')}/groups?id_in=#{groupIds.join(",")}", (err, response) =>
+        @plugin.timecounts.get "/organizations/#{@plugin.get('organizationSlug')}/groups?id_in=#{groupIds.join(",")}", (err, response) =>
           return done(new Error("Failed to fetch groups from timecounts.")) if err
           timecountsGroups = response.data
           timecountsGroupsById = {}
@@ -83,7 +101,7 @@ module.exports = class Timecounts extends Controller
         create = (role, done) =>
           return done() if role.meta?.timecountsId
           groupData = groupFromRole(role)
-          @plugin.timecounts.post "/organizations/#{@plugin.get('organization')}/groups", groupData, (err, response) =>
+          @plugin.timecounts.post "/organizations/#{@plugin.get('organizationSlug')}/groups", groupData, (err, response) =>
             next = (err, response) =>
               return done(new Error("Failed to create group in timecounts.")) if err
               group = response.data
@@ -92,7 +110,7 @@ module.exports = class Timecounts extends Controller
               role.setMeta timecountsId: group.id
               role.save done
             if err and err.status is 422
-              @plugin.timecounts.get "/organizations/#{@plugin.get('organization')}/groups?name=#{encodeURIComponent groupData.name}", next
+              @plugin.timecounts.get "/organizations/#{@plugin.get('organizationSlug')}/groups?name=#{encodeURIComponent groupData.name}", next
             else
               next(err, response)
         @plugin.async.mapSeries @roles, create, done
@@ -120,7 +138,7 @@ module.exports = class Timecounts extends Controller
               personIds = Object.keys(usersByTimecountsPersonId)
               return done() if personIds.length is 0
               # Check these people still exist on tiemcounts
-              @plugin.timecounts.get "/organizations/#{@plugin.get('organization')}/people?id_in=#{personIds.join(",")}", (err, response) =>
+              @plugin.timecounts.get "/organizations/#{@plugin.get('organizationSlug')}/people?id_in=#{personIds.join(",")}", (err, response) =>
                 return done(new Error("Failed to fetch people from timecounts.")) if err
                 timecountsPeople = response.data
                 timecountsPeopleById = {}
@@ -178,7 +196,7 @@ module.exports = class Timecounts extends Controller
               create = (user, done) =>
                 return done() if user.meta?.timecountsId
                 personData = personFromUser(user)
-                @plugin.timecounts.post "/organizations/#{@plugin.get('organization')}/people", personData, (err, response) =>
+                @plugin.timecounts.post "/organizations/#{@plugin.get('organizationSlug')}/people", personData, (err, response) =>
                   next = (err, response) =>
                     return done(new Error("Failed to create person in timecounts.")) if err
                     person = response.data
@@ -187,7 +205,7 @@ module.exports = class Timecounts extends Controller
                     user.setMeta timecountsId: person.id
                     user.save -> done() # ignore errors
                   if err and err.status is 422
-                    @plugin.timecounts.get "/organizations/#{@plugin.get('organization')}/people?email=#{encodeURIComponent personData.email}", next
+                    @plugin.timecounts.get "/organizations/#{@plugin.get('organizationSlug')}/people?email=#{encodeURIComponent personData.email}", next
                   else
                     next(err, response)
               @plugin.async.mapSeries users, create, done
@@ -206,7 +224,7 @@ module.exports = class Timecounts extends Controller
               return done(err) if err
               return done() unless users?.length
               personIds = (user.meta.timecountsId for user in users when user.meta?.timecountsId?)
-              @plugin.timecounts.put "/organizations/#{@plugin.get('organization')}/groups/#{groupId}/members", personIds, (err, response) =>
+              @plugin.timecounts.put "/organizations/#{@plugin.get('organizationSlug')}/groups/#{groupId}/members", personIds, (err, response) =>
                 return done() unless err
                 return done(new Error(err.data?.error_message ? "Something went wrong"))
         @plugin.async.each @roles, updateGroupWithRole, done

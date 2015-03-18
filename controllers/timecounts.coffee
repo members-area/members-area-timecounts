@@ -56,7 +56,7 @@ module.exports = class Timecounts extends Controller
       data =
         email: @data.email
         password: @data.password
-        scopes: ['read:person', 'write:person', 'read:group', 'write:group']
+        scopes: ['read:person', 'write:person', 'read:group', 'write:group', 'write:optin']
         organization_ids: [id]
       @plugin.timecounts.post "/users/sign_in", data, (err, response) =>
         if err
@@ -208,6 +208,16 @@ module.exports = class Timecounts extends Controller
                     @plugin.timecounts.get "/organizations/#{@plugin.get('organizationSlug')}/people?email=#{encodeURIComponent personData.email}", next
                   else
                     next(err, response)
+                    # Do this in background
+                    if !err
+                      optinData =
+                        person_id: response.data.id
+                        explicit: true
+                        medium: 'email'
+                        message_types: '*'
+                        date: user.createdAt.toISOString()
+                        optin_method: 'checkbox'
+                      @plugin.timecounts.post "/organizations/#{@plugin.get('organizationSlug')}/optins", optinData, (err, response) => # NOOP
               @plugin.async.mapSeries users, create, done
           , done
 
